@@ -16,7 +16,7 @@ def load_csv(fp, key=None, dialect=None):
             pass
     fp = csv.reader(fp, dialect=(dialect or "excel"))
     headings = next(fp)
-    rows = [dict(zip(headings, line)) for line in fp]
+    rows = [dict(zip(headings, [cell.strip() if isinstance(cell, str) else cell for cell in line])) for line in fp]
     if key:
         keyfn = lambda r: r[key]
     else:
@@ -185,7 +185,6 @@ def human_text(result, key=None, singular=None, plural=None, show_unchanged=Fals
         summary.append("\n\n".join(rows))
         summary.append("")
     return (", ".join(title) + "\n\n" + ("\n".join(summary))).strip()
-
 
 def human_row(row, prefix=""):
     bits = []
