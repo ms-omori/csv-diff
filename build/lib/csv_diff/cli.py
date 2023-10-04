@@ -14,12 +14,27 @@ from . import load_csv, load_json, compare, human_text
     type=click.Path(exists=True, file_okay=True, dir_okay=False, allow_dash=False),
 )
 @click.option(
-    "--key", type=str, default=None, help="Column to use as a unique ID for each row"
+    "--keys", type=str, default=None, help="Column to use as a unique ID for each row"
 )
 
 @click.option(
     "--charset", type=str, default="utf-8", help="Import CSV charset.(JSON must specify utf-8)"
 )
+
+@click.option(
+    "--trim",
+    is_flag=True,
+    default=True,
+    help="Trim field value"
+)
+
+@click.option(
+    "--reverse",
+    is_flag=False,
+    default=False,
+    help="Reverse first input file"
+)
+
 @click.option(
     "--format",
     type=click.Choice(["csv", "tsv", "json"]),
@@ -46,22 +61,31 @@ from . import load_csv, load_json, compare, human_text
     is_flag=True,
     help="Show unchanged fields for rows with at least one change",
 )
-def cli(previous, current, key, charset, format, json, singular, plural, show_unchanged):
+def cli(previous, current, keys, charset, trim, reverse, format, json, singular, plural, show_unchanged):
     "Diff two CSV or JSON files"
     dialect = {
         "csv": "excel",
         "tsv": "excel-tab",
     }
+    keys = split_key(keys)
 
     def load(filename):
         if format == "json":
-            return load_json(open(filename), key=key)
+            return load_json(open(filename), keys=keys)
         else:
             csv_file = open(filename, newline="",encoding=charset, errors="ignore")
-            return load_csv(csv_file, key=key, dialect=dialect.get(format))
+            return load_csv(csv_file, keys=keys, dialect=dialect.get(format),trim=trim,charset=charset)
 
-    diff = compare(load(previous), load(current), show_unchanged)
+    previous_file = load(previous)
+    current_file = load(current)
+    diff = compare(previous_file, current_file, show_unchanged)
     if json:
         print(std_json.dumps(diff, indent=4))
     else:
-        print(human_text(diff, key, singular, plural))
+        print(human_text(diff, keys, singular, plural))
+
+def split_key(keys):
+    if keys:
+        return keys.split(",")
+    else:
+        return None

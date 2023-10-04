@@ -4,7 +4,7 @@ import json
 import hashlib
 
 
-def load_csv(fp, key=None, dialect=None):
+def load_csv(fp, keys=None, dialect=None, trim=True, charset="utf8"):
     if dialect is None and fp.seekable():
         # Peek at first 1MB to sniff the delimiter and other dialect details
         peek = fp.read(1024 ** 2)
@@ -16,12 +16,17 @@ def load_csv(fp, key=None, dialect=None):
             pass
     fp = csv.reader(fp, dialect=(dialect or "excel"))
     headings = next(fp)
-    rows = [dict(zip(headings, [cell.strip() if isinstance(cell, str) else cell for cell in line])) for line in fp]
-    if key:
-        keyfn = lambda r: r[key]
+
+    if trim:
+        rows = [dict(zip(headings, [cell.strip() if isinstance(cell, str) else cell for cell in line])) for line in fp]
+    else:
+        rows = [dict(zip(headings, line)) for line in fp]
+
+    if keys:
+        keyfn = lambda r: ':'.join([str(r.get(k, '')) for k in keys])
     else:
         keyfn = lambda r: hashlib.sha1(
-            json.dumps(r, sort_keys=True).encode("utf8")
+            json.dumps(r, sort_keys=True).encode(charset)
         ).hexdigest()
     return {keyfn(r): r for r in rows}
 
