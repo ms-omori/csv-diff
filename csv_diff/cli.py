@@ -14,7 +14,12 @@ from . import load_csv, load_json, compare, human_text
     type=click.Path(exists=True, file_okay=True, dir_okay=False, allow_dash=False),
 )
 @click.option(
-    "--keys", type=str, default=None, help="Column to use as a unique ID for each row"
+    "--key",
+    "--keys",
+    "keys",
+    type=str,
+    default=None,
+    help="Column to use as a unique ID for each row",
 )
 
 @click.option(
@@ -30,7 +35,7 @@ from . import load_csv, load_json, compare, human_text
 
 @click.option(
     "--reverse",
-    is_flag=False,
+    is_flag=True,
     default=False,
     help="Reverse first input file"
 )
@@ -69,9 +74,16 @@ def cli(previous, current, keys, charset, trim, reverse, format, json, singular,
     }
     keys = split_key(keys)
 
+    display_key = None
+    if isinstance(keys, list):
+        display_key = keys[0] if len(keys) == 1 else ",".join(keys)
+    else:
+        display_key = keys
+
     def load(filename):
         if format == "json":
-            return load_json(open(filename), keys=keys)
+            key = keys[0] if isinstance(keys, list) else keys
+            return load_json(open(filename), key=key)
         else:
             csv_file = open(filename, newline="",encoding=charset, errors="ignore")
             return load_csv(csv_file, keys=keys, dialect=dialect.get(format),trim=trim,charset=charset)
@@ -82,7 +94,7 @@ def cli(previous, current, keys, charset, trim, reverse, format, json, singular,
     if json:
         print(std_json.dumps(diff, indent=4))
     else:
-        print(human_text(diff, keys, singular, plural))
+        print(human_text(diff, display_key, singular, plural))
 
 def split_key(keys):
     if keys:
