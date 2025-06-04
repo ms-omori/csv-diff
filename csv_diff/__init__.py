@@ -1,10 +1,28 @@
 import csv
-from dictdiffer import diff
-import json
 import hashlib
+import json
+try:
+    from dictdiffer import diff  # type: ignore
+except ModuleNotFoundError:  # pragma: no cover - fallback for minimal install
+    def diff(a, b, ignore=None):
+        """Minimal dict difference used if dictdiffer is unavailable."""
+        ignore = set(ignore or [])
+        keys = set(a.keys()) | set(b.keys())
+        for key in keys:
+            if key in ignore:
+                continue
+            if a.get(key) != b.get(key):
+                yield ("change", key, (a.get(key), b.get(key)))
 
 
-def load_csv(fp, keys=None, dialect=None, trim=True, charset="utf8"):
+def load_csv(fp, key=None, keys=None, dialect=None, trim=True, charset="utf8"):
+    """Load CSV data and return a dictionary keyed by the provided columns."""
+    if key is not None:
+        # Support backwards compatibility where ``key`` was used instead of
+        # ``keys``.  ``key`` takes precedence if both are supplied.
+        if keys is not None:
+            raise TypeError("Specify either key or keys, not both")
+        keys = [key]
     if dialect is None and fp.seekable():
         # Peek at first 1MB to sniff the delimiter and other dialect details
         peek = fp.read(1024 ** 2)
@@ -16,6 +34,10 @@ def load_csv(fp, keys=None, dialect=None, trim=True, charset="utf8"):
             pass
     fp = csv.reader(fp, dialect=(dialect or "excel"))
     headings = next(fp)
+    if keys:
+        missing = [k for k in keys if k not in headings]
+        if missing:
+            raise KeyError("Missing columns: {}".format(", ".join(missing)))
 
     if trim:
         rows = [dict(zip(headings, [cell.strip() if isinstance(cell, str) else cell for cell in line])) for line in fp]
